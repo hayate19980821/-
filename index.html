@@ -1,1 +1,239 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>おたく場ギルド</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#000;color:#fff;font-family:system-ui,"Hiragino Sans","Yu Gothic",sans-serif}
+button,input{font:inherit}
+.screen{min-height:100vh;display:none;align-items:center;justify-content:center;padding:18px}
+.screen.active{display:flex}
+.panel{width:100%;max-width:430px;background:#050505;border:4px solid #fff;box-shadow:8px 8px 0 #333;padding:22px}
+.title{color:#ffd84d;text-align:center;font-size:34px;font-weight:900;text-shadow:3px 3px #6b4a00;margin:10px 0 32px}
+.text{text-align:center;font-size:25px;line-height:1.7}
+.choice{display:block;width:100%;margin:14px 0;padding:18px;border:3px solid #fff;background:#000;color:#fff;text-align:left;font-size:25px}
+.choice.primary{background:#ffd84d;color:#000;border-color:#ffd84d}
+.choice:active{transform:translateY(2px)}
+.nameInput{width:100%;padding:18px;margin:20px 0;background:#000;color:#fff;border:3px solid #fff;font-size:24px;text-align:center}
+.game{display:none;min-height:100vh;background:linear-gradient(#52b7ff 0 30%,#7bdc68 30% 100%);padding:24px 14px}
+.game.active{display:block}
+.logoBox{margin:18px auto 40px;width:max-content;padding:12px 28px;border:4px solid #fff;background:#050505;color:#ffd84d;font-size:25px}
+.monsters{height:38vh;position:relative}
+.monster{position:absolute;font-size:58px;filter:drop-shadow(5px 8px 0 rgba(0,0,0,.35))}
+.slime{left:8%;top:40%}
+.goblin{left:40%;top:27%}
+.boar{right:7%;top:38%}
+.command{position:fixed;left:14px;right:14px;bottom:22px;background:#050505;border:4px solid #fff;box-shadow:7px 7px 0 #333;padding:18px;max-width:430px;margin:auto}
+.commandHead{display:flex;justify-content:space-between;margin-bottom:14px;color:#8cff9f;font-size:18px}
+.cmdBtn{width:100%;margin:8px 0;padding:16px;background:#000;color:#fff;border:3px solid #fff;text-align:left;font-size:24px}
+.cmdBtn.small{font-size:20px}
+.cmdBtn.disabled{opacity:.45}
+.detailTitle{color:#ffd84d;font-size:27px;margin-bottom:12px}
+.price{color:#8cff9f;font-size:24px;margin:12px 0}
+.desc{font-size:19px;line-height:1.6;color:#ddd;margin:12px 0 20px}
+.notice{color:#ffd84d;text-align:center;font-size:26px;margin-bottom:18px}
+hr{border:0;border-top:2px solid #fff;margin:14px 0}
+</style>
+</head>
+<body>
 
+<audio id="bgm" src="maou_bgm_fantasy15.mp3" loop></audio>
+
+<section id="titleScreen" class="screen active">
+  <div class="panel">
+    <div class="title">おたく場ギルド</div>
+    <div class="text">メニューを開きますか？</div>
+    <button class="choice primary" onclick="startApp()">▶ はい</button>
+    <button class="choice" onclick="noLoop()">　いいえ</button>
+  </div>
+</section>
+
+<section id="noScreen" class="screen">
+  <div class="panel">
+    <div class="text">ギルドマスター<br><br>「冷やかしか？<br>さっさとメニューを開くんだ。」</div>
+    <button class="choice primary" onclick="startApp()">▶ はい</button>
+    <button class="choice" onclick="noLoop()">　いいえ</button>
+  </div>
+</section>
+
+<section id="nameScreen" class="screen">
+  <div class="panel">
+    <div class="text">冒険者名を入力してください</div>
+    <input id="nameInput" class="nameInput" placeholder="例：ハヤテ">
+    <button class="choice primary" onclick="saveName()">▶ 登録する</button>
+  </div>
+</section>
+
+<section id="welcomeScreen" class="screen">
+  <div class="panel">
+    <div id="welcomeText" class="notice">おかえり、ハヤテ！</div>
+    <button class="choice" onclick="openGame()">▶ メニューを開く</button>
+  </div>
+</section>
+
+<main id="game" class="game">
+  <div class="logoBox">おたく場ギルド</div>
+  <div class="monsters">
+    <div class="monster slime">🟢</div>
+    <div class="monster goblin">👺</div>
+    <div class="monster boar">🐗</div>
+  </div>
+
+  <div class="command">
+    <div class="commandHead">
+      <span id="playerName">冒険者</span>
+      <span id="modeName">メニュー選択</span>
+    </div>
+    <div id="commandBody"></div>
+  </div>
+</main>
+
+<script>
+const menus = {
+  "ドリンク":[
+    {name:"回復ポーション",price:600,desc:"ノンアル。HPをやさしく回復。",status:"販売中"},
+    {name:"吟遊詩人のレモンサワー",price:750,desc:"一口飲めば語りたくなる爽快な一杯。",status:"販売中"}
+  ],
+  "アルコール":[
+    {name:"冒険者のエール",price:700,desc:"まずは一杯。勇気が少し上がる定番ビール。",status:"販売中"},
+    {name:"魔法使いのハイボール",price:800,desc:"詠唱前の喉を潤す黄金炭酸。",status:"販売中"}
+  ],
+  "フード":[
+    {name:"ドラゴン唐揚げ",price:900,desc:"外はカリッと、中は伝説級。",status:"販売中"},
+    {name:"スライム枝豆",price:500,desc:"とりあえず召喚されがちな緑のやつ。",status:"販売中"}
+  ],
+  "イベント":[
+    {name:"推し布教クエスト",price:0,desc:"好きな作品を語るための特別依頼。",status:"販売中"},
+    {name:"記念撮影の儀",price:500,desc:"冒険の証を残すフォトクエスト。",status:"販売中"}
+  ]
+};
+
+let orders=[];
+let currentCategory=null;
+
+function $(id){return document.getElementById(id)}
+function show(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  $("game").classList.remove("active");
+  $(id).classList.add("active");
+}
+function playSE(type="decide"){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value=type==="cursor"?660:880;
+    gain.gain.setValueAtTime(.07,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.12);
+    osc.start(); osc.stop(ctx.currentTime+.12);
+  }catch(e){}
+}
+function startBGM(){
+  const bgm=$("bgm");
+  bgm.volume=.55;
+  bgm.play().catch(()=>{});
+}
+function noLoop(){playSE("cursor");show("noScreen")}
+function startApp(){
+  playSE("decide");
+  startBGM();
+  const name=localStorage.getItem("guildName");
+  if(name){
+    $("welcomeText").textContent=`おかえり、${name}！`;
+    show("welcomeScreen");
+  }else{
+    show("nameScreen");
+  }
+}
+function saveName(){
+  const name=$("nameInput").value.trim();
+  if(!name){alert("冒険者名を入力してください");return}
+  localStorage.setItem("guildName",name);
+  playSE("decide");
+  $("welcomeText").textContent=`おかえり、${name}！`;
+  show("welcomeScreen");
+}
+function openGame(){
+  playSE("decide");
+  $("game").classList.add("active");
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  $("playerName").textContent=localStorage.getItem("guildName")||"冒険者";
+  renderHome();
+}
+function btn(label,fn,extra=""){
+  return `<button class="cmdBtn ${extra}" onclick="${fn}">▶ ${label}</button>`;
+}
+function renderHome(){
+  $("modeName").textContent="メニュー選択";
+  $("commandBody").innerHTML =
+    Object.keys(menus).map(c=>btn(c,`renderCategory('${c}')`)).join("")+
+    "<hr>"+
+    btn(`受注中の依頼（${orders.length}）`,"renderOrders()","small");
+}
+function renderCategory(cat){
+  playSE("cursor");
+  currentCategory=cat;
+  $("modeName").textContent=cat;
+  $("commandBody").innerHTML =
+    menus[cat].map((m,i)=>{
+      const sold=m.status==="売り切れ";
+      return btn(`${m.name}${sold?"　売り切れ":""}`, sold?"":`renderDetail(${i})`, sold?"disabled":"");
+    }).join("")+
+    "<hr>"+btn("戻る","renderHome()","small");
+}
+function renderDetail(i){
+  playSE("cursor");
+  const item=menus[currentCategory][i];
+  $("modeName").textContent="詳細";
+  $("commandBody").innerHTML=`
+    <div class="detailTitle">${item.name}</div>
+    <div class="price">${item.price.toLocaleString()}円</div>
+    <div class="desc">${item.desc}</div>
+    ${btn("受注する",`addOrder(${i})`)}
+    ${btn("戻る",`renderCategory('${currentCategory}')`,"small")}
+  `;
+}
+function addOrder(i){
+  const item=menus[currentCategory][i];
+  orders.push({...item});
+  playSE("decide");
+  $("modeName").textContent="受注完了";
+  $("commandBody").innerHTML=`
+    <div class="notice">受注しました。</div>
+    ${btn("一覧に戻る",`renderCategory('${currentCategory}')`)}
+    ${btn(`受注中の依頼（${orders.length}）`,"renderOrders()","small")}
+  `;
+}
+function renderOrders(){
+  playSE("cursor");
+  $("modeName").textContent="受注中の依頼";
+  const total=orders.reduce((s,o)=>s+o.price,0);
+  if(!orders.length){
+    $("commandBody").innerHTML=`<div class="desc">まだ依頼を受注していません。</div>${btn("戻る","renderHome()")}`;
+    return;
+  }
+  $("commandBody").innerHTML=orders.map((o,i)=>`
+    <div class="desc">${o.name}<br>${o.price.toLocaleString()}円</div>
+  `).join("<hr>")+`
+    <hr>
+    <div class="price">合計 ${total.toLocaleString()}円</div>
+    ${btn("帰還する","finishOrder()")}
+    ${btn("戻る","renderHome()","small")}
+  `;
+}
+function finishOrder(){
+  playSE("decide");
+  orders=[];
+  $("modeName").textContent="依頼完了";
+  $("commandBody").innerHTML=`
+    <div class="notice">依頼完了！</div>
+    <div class="text">ありがとうございました！</div>
+    ${btn("メニューに戻る","renderHome()")}
+  `;
+}
+</script>
+</body>
+</html>
